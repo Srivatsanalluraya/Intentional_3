@@ -1,0 +1,64 @@
+name: AI Security Scan
+
+permissions:
+  contents: write          # For committing reports
+  pull-requests: write     # For PR comments
+  security-events: write   # For security tab
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ============================
+      # Checkout Repository
+      # ============================
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      # ============================
+      # Run AI Security Scanner
+      # ============================
+      - name: Run AI Security Scanner
+        uses: Srivatsanalluraya/AI-Security-Scanner3.0@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          enforce_policy: "true"
+        env:
+          # 🔐 Secure AI Backend (Render)
+          AI_BACKEND_URL:  https://ai-security-backend.onrender.com/analyze
+
+
+      # ============================
+      # Commit Generated Reports
+      # ============================
+      - name: Commit scan reports
+        if: always()
+        run: |
+
+          echo "📦 Committing security reports..."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Ensure directory exists
+          mkdir -p security-reports
+
+          # Stage reports
+          git add security-reports/ || true
+
+          # Commit if changed
+          git diff --cached --quiet || \
+            git commit -m "📊 Automated security scan report [skip ci]"
+
+          # Push safely
+          git push || echo "⚠ Push skipped (PR / no permission / no changes)"
